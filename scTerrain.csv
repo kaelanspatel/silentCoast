@@ -1,0 +1,7 @@
+terrainName,fundRateMod,artifactRateMod,industryRateMod,foodRateMod,powerRateMod,size,defenseMod,weird
+coast,3,0,1,4,0,4,0,0
+plains,1,0,0,5,0,6,-5,0
+hills,1,0,5,1,0,3,0,0
+mountains,5,0,4,0,0,1,10,0
+marsh,1,0,0,7,0,2,15,0
+forest,2,0,3,2,0,3,10,0

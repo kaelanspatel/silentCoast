@@ -1,0 +1,17 @@
+buildingName,fundCost,artifactCost,instantBuild,icCost,fundRateMod,artifactRateMod,industryRateMod,foodRateMod,powerRateMod,slotsUsed,defenseMod,attackMod,weird,tier
+govbuilding,0,0,0,0,1,0,1,1,5,0,5,0,0,-1
+workshop,50,0,1,-1,0,0,2,-1,-3,1,1,0,0,0
+manualfarm,35,0,1,-1,-1,0,0,2,0,1,1,0,0,0
+generator,50,0,1,-1,-1,0,0,0,3,1,0,0,0,0
+salvagehouse,20,0,1,-1,4,0,-1,-1,0,1,-1,0,0,0
+militia,20,0,1,-1,-2,0,0,-1,0,1,5,5,0,0
+smallfactory,120,0,0,70,-2,0,7,-1,-5,2,2,0,0,1
+artisansquarter,150,0,0,60,2,0,4,-3,-3,2,0,0,0,1
+communalfarm,60,0,0,70,-1,0,0,12,-1,2,2,0,0,1
+aquaponicfarm,120,0,0,70,-2,0,0,10,-4,1,1,0,0,1
+solarfarm,120,0,0,80,-4,0,0,0,12,2,0,0,0,1
+powerplant,120,0,0,90,-1,0,0,-4,15,2,2,0,0,1
+tradesquare,90,0,0,90,8,0,-2,-2,-1,1,-5,0,0,1
+localmarket,50,0,0,80,4,0,0,3,-1,2,-5,0,0,1
+fortifications,40,0,0,50,-1,0,0,0,-1,1,20,0,0,1
+barracks,100,0,0,50,-5,0,0,-3,-1,1,10,20,0,1

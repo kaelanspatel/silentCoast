@@ -1,0 +1,6 @@
+{ "user" : "root", 
+"password" : "root",
+"host" : "localhost",
+"database" : "bookclub",
+"auth_plugin" : "mysql_native_password"
+}
