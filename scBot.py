@@ -172,7 +172,7 @@ async def join(ctx, settlementname):
             startTerrain = 'coast'
 
         if str(reaction.emoji) == opt2:
-            await ctx.send('```You have created the settlement of ' + settlementname + " on the inland plains and praries of the SILENT COAST! Use the [collect] command to see your resources.```")
+            await ctx.send('```You have created the settlement of ' + settlementname + " on the inland plains and prairies of the SILENT COAST! Use the [collect] command to see your resources.```")
             startTerrain = 'plains'
 
         if str(reaction.emoji) == opt3:
@@ -209,7 +209,7 @@ async def join(ctx, settlementname):
         await ctx.send("```VIOLATION: USER ALREADY EXISTS IN DATABASE```")
 
 
-@bot.command(name = 'leave', aliases = ['l'], help = 'Leave the game. Your dada will be forefit.')
+@bot.command(name = 'leave', aliases = ['l'], help = 'Leave the game. Your data will be forfeit.')
 async def leave(ctx):
     cursor.execute('DELETE FROM users WHERE discord = ?', (ctx.message.author.id,))
     cursor.execute('DELETE FROM settlement WHERE discord = ?', (ctx.message.author.id,))
@@ -239,10 +239,11 @@ async def test(ctx):
     cursor.execute('SELECT * FROM settlement WHERE discord = ?', (ctx.message.author.id,))
     print(cursor.fetchone())
 
-    # check if building is done; if so, function adds it to the user_buildings table and removes it from the building_q table
+    # check build progress and save bar
 
     # update settlements
 
+    # format collect embed
     
     
     
