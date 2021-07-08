@@ -20,6 +20,8 @@ owner = int(os.getenv('OWNER_ID'))
 db = sqlite3.connect('silentcoast.db')
 cursor = db.cursor()
 
+building_names = csv_to_dict("./scBuildingNames.csv")
+
 @bot.event
 async def on_ready():
     try:
@@ -238,7 +240,6 @@ async def test(ctx):
         await ctx.send("```VIOLATION: PLEASE JOIN THE GAME BEFORE USING THIS COMMAND```")
         return
 
-
     # determine time difference since last collection in full minuites and update
     diff = collection_timestamp_update(ctx.message.author.id, cursor, db)
     
@@ -249,8 +250,19 @@ async def test(ctx):
         return
     
     # update settlement totals
+    update_settlement(ctx.message.author.id, cursor, db, diff)
 
     # check build progress and save bar
+    cursor.execute('SELECT builditemName FROM build_q WHERE discord = ?', (ctx.message.author.id,))
+    builditem = cursor.fetchone()
+
+    if builditem:
+
+        builditem = builditem[0]
+
+        if builditem in building_names:
+            bar = update_buildq(ctx.message.author.id, cursor, db, builditem)
+            print(bar)
 
     # format collect embed
     

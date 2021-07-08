@@ -1,6 +1,18 @@
 import datetime, pandas
 from scFormat import barify
 
+# get difference between row with key discord in build_q and now
+def get_buildcycle_difference(discord, cursor):
+    cursor.execute('SELECT CAST ((JulianDay(?) - JulianDay(startTime)) * 24 * 60  As Integer) FROM build_q WHERE discord = ?', (datetime.datetime.now(), discord,))
+    diff = cursor.fetchone()
+
+    cursor.execute('SELECT cycleTimer FROM users WHERE discord = ?', (discord,))
+    curr = cursor.fetchone()
+
+    print("Building diff:", diff, curr, datetime.datetime.now())
+    return int(diff[0])
+
+
 # Get difference between row with key discord's last collection time and now
 def get_cycle_difference(discord, cursor):
     cursor.execute('SELECT * FROM users WHERE discord = ?', (discord,))
@@ -15,7 +27,7 @@ def get_cycle_difference(discord, cursor):
         cursor.execute('SELECT cycleTimer FROM users WHERE discord = ?', (discord,))
         curr = cursor.fetchone()
 
-        print(diff, curr, datetime.datetime.now())
+        print("Status diff:", diff, curr, datetime.datetime.now())
         return int(diff[0])
 
 # Update cycleTimer of row with key discord to current time
@@ -60,22 +72,29 @@ def update_settlement(discord, cursor, db, time_passed):
     # access user_terrain and get all terrains associated with user
     cursor.execute('SELECT terrainName, terrainCount FROM user_terrain WHERE discord = ?', (discord,))
     terrains = cursor.fetchall()
+    print(terrains)
 
     # access user_buildings and get all buildings associated with user
     cursor.execute('SELECT buildingName, buildingCount FROM user_buildings WHERE discord = ?', (discord,))
     buildings = cursor.fetchall()
+    print(buildings)
+
+    # reset rates
+    cursor.execute('UPDATE settlement SET fundRate = ?, artifactRate = ?, industryRate = ?, foodRate = ?, powerRate = ?, defense = ?, totalSlots = ?, usedSlots = ?, strange = ? WHERE  discord = ?', (0,0,0,0,0,0,0,0,0,discord,))
 
     for terrain, count in terrains:
         cursor.execute('SELECT fundRateMod, artifactRateMod, industryRateMod, foodRateMod, powerRateMod, size, defenseMod, weird FROM terrain WHERE terrainName = ?', (terrain,))
         tmodifiers = [int(int(item) * int(count)) for item in cursor.fetchone()]
+        print(tmodifiers)
 
         cursor.execute('UPDATE settlement SET fundRate = fundRate + ?, artifactRate = artifactRate + ?, industryRate = industryRate + ?, foodRate = foodRate + ?, powerRate = powerRate + ?, defense = defense + ?, totalSlots = totalSlots + ?, strange = strange + ? WHERE  discord = ?', (tmodifiers[0],tmodifiers[1],tmodifiers[2],tmodifiers[3],tmodifiers[4],tmodifiers[6],tmodifiers[5],tmodifiers[7],discord,))
 
     for building, count in buildings:
         cursor.execute('SELECT fundRateMod, artifactRateMod, industryRateMod, foodRateMod, powerRateMod, slotsUsed, defenseMod, attackMod, weird FROM buildings WHERE buildingName = ?', (building,))
         bmodifiers = [int(int(item) * int(count)) for item in cursor.fetchone()]
+        print(bmodifiers)
 
-        cursor.execute('UPDATE settlement SET fundRate = fundRate + ?, artifactRate = artifactRate + ?, industryRate = industryRate + ?, foodRate = foodRate + ?, powerRate = powerRate + ?, defense = defense + ?, attack = attack + ?, totalSlots = totalSlots + ?, strange = strange + ? WHERE  discord = ?', (bmodifiers[0],bmodifiers[1],bmodifiers[2],bmodifiers[3],bmodifiers[4],bmodifiers[6],bmodifiers[7],bmodifiers[5],bmodifiers[8],discord,))
+        cursor.execute('UPDATE settlement SET fundRate = fundRate + ?, artifactRate = artifactRate + ?, industryRate = industryRate + ?, foodRate = foodRate + ?, powerRate = powerRate + ?, defense = defense + ?, attack = attack + ?, usedSlots = usedSlots + ?, strange = strange + ? WHERE  discord = ?', (bmodifiers[0],bmodifiers[1],bmodifiers[2],bmodifiers[3],bmodifiers[4],bmodifiers[6],bmodifiers[7],bmodifiers[5],bmodifiers[8],discord,))
 
     db.commit()
 
@@ -90,12 +109,15 @@ def can_build(discord, cursor, building_cost_funds, building_cost_artifacts, bui
     # next, check if they have the funds to build the building
     cursor.execute('SELECT * FROM settlement WHERE discord = ?', (discord,))
     user_s = cursor.fetchone()
+    print(user_s)
 
+    print("BUILDCHECK: " + str(user_s[4]) + " less than " + str(building_cost_funds))
     if user_s[4] < building_cost_funds or user_s[6] < building_cost_artifacts:
         return "USER HAS INSUFFICIENT RESOURCES TO CONSTRUCT"
 
     # next, check if they have the free slots nessesary
-    if user_s[13] < building_slots:
+    print("BUILDCHECK: " + str(user_s[13]) + " - " + str(user_s[14]) + " less than " + str(building_slots))
+    if user_s[13] - user_s[14] < building_slots:
         return "USER HAS INSUFFICIENT BUILDING SLOTS"
 
     # if all these are ok, then they can build!
@@ -111,7 +133,7 @@ def update_buildq(discord, cursor, db, buildstring):
     queue = cursor.fetchone()
 
     # multiply time passed by player ic from build_q   
-    diff = get_cycle_difference(discord, cursor)
+    diff = get_buildcycle_difference(discord, cursor)
     work_done = diff * queue[3]
 
     # if work done greater than or equal to industrial cost of building OR the building is tier 0 (i.e. the cost is -1), then building is done
@@ -144,6 +166,8 @@ def update_buildq(discord, cursor, db, buildstring):
     else:
 
         print("continuing construction on", buildstring)
+        print("workdone:", work_done)
+        print("workremaining:", queue[2])
         return barify(work_done, queue[2])
 
 
