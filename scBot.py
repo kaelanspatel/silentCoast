@@ -88,7 +88,7 @@ async def on_ready():
         # else, render progress bar with format barify() and update settlement
 
 
-        cursor.execute('CREATE TABLE IF NOT EXISTS user_buildings (discord integer PRIMARY KEY, buildingName varchar(255), buildingCount integer)')
+        cursor.execute('CREATE TABLE IF NOT EXISTS user_buildings (discord integer, buildingName varchar(255), buildingCount integer)')
         # discord: discord user id of the building owner
         # buildingName: lowercase foreign key for buildings table
         # buildingCount: number of that building that the user has
@@ -131,11 +131,14 @@ async def wipe(ctx):
     if ctx.message.author.id == owner:
         rebuild_tables(cursor, db)
     else:
-        await ctx.send("VIOLATION: NON-AUTHORIZED USER")
+        await ctx.send("```VIOLATION: NON-AUTHORIZED USER```")
 
 
 @bot.command(name = 'join', aliases = ['j'], help = 'Name your settlement.')
-async def join(ctx, settlementname):
+async def join(ctx, settlementname = None):
+
+    if settlementname == None:
+        await ctx.send("```VIOLATION: SPECIFY A SETTLEMENT NAME```")
 
     # 32 char limit, as arbitrarily set by me :V
     # strip punctuation; thanks Alex :)
@@ -227,27 +230,27 @@ async def leave(ctx):
 
     await ctx.send("```YOU HAVE LEFT THE GAME```")
 
-@bot.command(name = 'collect', aliases = ['c', 'collection', 'col'], help = 'Collects resources and updates progress toward buildings, pop growth etc.')
+@bot.command(name = 'status', aliases = ['s', 'stats'], help = 'Check settlement status (building/growth progress, resources etc).')
 async def test(ctx):
     
     cursor.execute('SELECT * FROM users WHERE discord = ?', (ctx.message.author.id,))
     if not cursor.fetchone():
         await ctx.send("```VIOLATION: PLEASE JOIN THE GAME BEFORE USING THIS COMMAND```")
         return
+
+
+    # determine time difference since last collection in full minuites and update
+    diff = collection_timestamp_update(ctx.message.author.id, cursor, db)
+    
     cursor.execute('SELECT * FROM settlement WHERE discord = ?', (ctx.message.author.id,))
-    if not cursor.fetchone():
+    user_row = cursor.fetchone()
+    if not user_row:
         await ctx.send("```VIOLATION: FINISH SETTLEMENT SET-UP```")
         return
-
-    # determine time difference since last collection in full minuites
-    diff = collection_timestamp_update(ctx.message.author.id, cursor, db)
-
-    cursor.execute('SELECT * FROM settlement WHERE discord = ?', (ctx.message.author.id,))
-    print(cursor.fetchone())
+    
+    # update settlement totals
 
     # check build progress and save bar
-
-    # update settlements
 
     # format collect embed
     
@@ -319,10 +322,18 @@ async def test(ctx, building = None):
                 await ctx.send("```VIOLATION: " + building_blocked + "```")
                 return
             else:
+                
+                # subtract funds/artifacts required
 
                 # add building to build queue
                 cursor.execute('INSERT INTO build_q (discord, builditemName, cost, ic, startTime) VALUES (?, ?, ?, ?, ?)', (ctx.message.author.id, building, iccost, user_ic, datetime.datetime.now(),))
                 await ctx.send("```BEGINNING CONSTRUCTION IN THE SETTLEMENT OF " + settlement_name + "```")
+
+                # in the case of a tier 0 building, the construction will already be done, so do a quick update
+                # this should just default to nothing for any other building, because no time has passed.
+                bar = update_buildq(ctx.message.author.id, cursor, db, building)
+                update_settlement(ctx.message.author.id, cursor, db, 0)
+                print(bar)
 
         if str(reaction.emoji) == no:
             

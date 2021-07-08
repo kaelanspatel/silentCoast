@@ -1,4 +1,5 @@
-import datetime, pandas, csv
+import datetime, pandas
+from scFormat import barify
 
 # Get difference between row with key discord's last collection time and now
 def get_cycle_difference(discord, cursor):
@@ -35,7 +36,8 @@ def collection_timestamp_update(discord, cursor, db):
     diff = get_cycle_difference(discord, cursor)
     if diff < 0:
         return -1
-
+    elif diff == 0:
+        return 0
     else:
         update_cycle_timer(discord, cursor, db)
         return diff
@@ -46,14 +48,6 @@ def csv_to_db(filename, tablename, db):
     df.to_sql(tablename, db, if_exists='append', index=False)
     db.commit()
 
-# Loads csv of filename into a dict and returns it
-def csv_to_dict(filename):
-    reader = csv.reader(open(filename, 'r'))
-    dict = {}
-    for k, v in reader:
-        dict[k] = v
-    return dict
-
 # Updates all settlement rows for key discord based on table user_buildings and user_terrain
 def update_settlement(discord, cursor, db, time_passed):
 
@@ -62,12 +56,6 @@ def update_settlement(discord, cursor, db, time_passed):
     to_add = [int(item) for item in cursor.fetchone()]
 
     cursor.execute('UPDATE settlement SET fundTotal = fundTotal + ?, artifactTotal = artifactTotal + ? WHERE discord = ?', (to_add[0] * time_passed, to_add[1] * time_passed, discord,))
-
-    # check building queue
-    # TODO: write helper func that checks if construction is finished based on time passed from building_q table and returns barify string and bool val for is build finished
-
-    # if build is done, update building/terrain and remove building/terrain from building queue
-    # TODO
     
     # access user_terrain and get all terrains associated with user
     cursor.execute('SELECT terrainName, terrainCount FROM user_terrain WHERE discord = ?', (discord,))
@@ -113,6 +101,54 @@ def can_build(discord, cursor, building_cost_funds, building_cost_artifacts, bui
     # if all these are ok, then they can build!
     return None
 
+# Updates build queue by comparing build time stored in queue times the player's ic at time of construction with the total cost
+# Returns a bar detailing progress, and updates the player's building list.
+# Should be called AFTER update_settlement to avoid retroactive yields
+def update_buildq(discord, cursor, db, buildstring):
+
+    # select the queue row
+    cursor.execute('SELECT * FROM build_q WHERE discord = ?', (discord,))
+    queue = cursor.fetchone()
+
+    # multiply time passed by player ic from build_q   
+    diff = get_cycle_difference(discord, cursor)
+    work_done = diff * queue[3]
+
+    # if work done greater than or equal to industrial cost of building OR the building is tier 0 (i.e. the cost is -1), then building is done
+    if work_done >= queue[2] or queue[3] == -1:
+
+        # update player buildings
+
+        cursor.execute('SELECT * FROM user_buildings WHERE discord = ? AND buildingName = ?', (discord,buildstring,))
+        userb_row = cursor.fetchone()
+
+        # if the user already has the building, just update the count
+        if userb_row:
+            cursor.execute('UPDATE user_buildings SET buildingCount = buildingCount + ? WHERE discord = ? AND buildingName = ?', (1,discord,buildstring,))
+        # else create the row
+        else:
+            cursor.execute('INSERT INTO user_buildings (discord, buildingName, buildingCount) VALUES (?, ?, ?)', (discord, buildstring, 1))
+
+        # remove player from build_q
+        cursor.execute('DELETE FROM build_q WHERE discord = ?', (discord,))
+
+        db.commit()
+
+        # update_settlement should really be called after this
+        # this is so consolidate building yields into user settlement
+
+        print("finished", buildstring)
+        return barify(work_done, queue[2])
+
+    # otherwise, just render the bar
+    else:
+
+        print("continuing construction on", buildstring)
+        return barify(work_done, queue[2])
+
+
+
+
 # Deletes and recreates empty tables
 def rebuild_tables(cursor, db):
     cursor.execute('DROP TABLE users')
@@ -127,7 +163,7 @@ def rebuild_tables(cursor, db):
     cursor.execute('CREATE TABLE IF NOT EXISTS terrain (id integer PRIMARY KEY, terrainName varchar(255), fundRateMod integer, artifactRateMod integer, industryRateMod integer, foodRateMod integer, powerRateMod integer, size integer, defenseMod integer, weird integer)')
     cursor.execute('CREATE TABLE IF NOT EXISTS buildings (id integer PRIMARY KEY, buildingName varchar(255), fundCost integer, artifactCost integer, instantBuild integer, icCost integer, fundRateMod integer, artifactRateMod integer, industryRateMod integer, foodRateMod integer, powerRateMod integer, slotsUsed integer, defenseMod integer, attackMod integer, weird integer, tier integer)')
     cursor.execute('CREATE TABLE IF NOT EXISTS build_q (discord integer PRIMARY KEY, builditemName varchar(255), cost integer, ic integer, startTime timestamp)')
-    cursor.execute('CREATE TABLE IF NOT EXISTS user_buildings (discord integer PRIMARY KEY, buildingName varchar(255), buildingCount integer)')
+    cursor.execute('CREATE TABLE IF NOT EXISTS user_buildings (discord integer, buildingName varchar(255), buildingCount integer)')
     cursor.execute('CREATE TABLE IF NOT EXISTS user_terrain (discord integer PRIMARY KEY, terrainName varchar(255), terrainCount integer)')
 
     csv_to_db("./scTerrain.csv", "terrain", db)
