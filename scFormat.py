@@ -1,4 +1,8 @@
 import discord
+from scUtil import *
+
+building_names = csv_to_dict("./scBuildingNames.csv")
+building_text = csv_to_dict("./scBuildingText.csv")
 
 # Translate number n and number p to a bar graph representing the percentage that n is of p; numbers larger than 100% default to a full bar
 def barify(n, p):
@@ -7,7 +11,6 @@ def barify(n, p):
     if ratio > 10:
         return "██████████"
     return ''.join(["█" for multiple in range(ratio)] + ["░" for remaining in range(10 - ratio)]), round_percentage
-
 
 def format_join(username, settlementname):
     embed = discord.Embed(title = "WELCOME TO THE GAME [" + username + "]",  description = "Welcome to the SILENT COAST, a post-apocalyptic city management idle game!")
@@ -19,4 +22,34 @@ def format_join(username, settlementname):
     embed.add_field(name = "-", value = "5. MARSH     [FUNDS: 1 INDUSTRY: 0 FOOD: 7 SIZE: 2 DEF: 15]: A higher chance of getting MARSH, COAST, and FOREST tiles", inline = False)
     embed.add_field(name = "-", value = "6. FOREST    [FUNDS: 2 INDUSTRY: 3 FOOD: 2 SIZE: 3 DEF: 10]: A higher chance of getting FOREST, PLAINS, and HILLS tiles", inline = False)
     embed.add_field(name = "SELECT BELOW", value = "--------------", inline = False)
+    return embed
+
+def building_stats(building):
+
+    building = [str(item) for item in building]
+
+    name = "BUILD STRING: `" + building[1] + "`"
+    fundcost = "\nFUND COST: " + building[2]
+    artifcost = " ARTIFACT COST: " + building[3]
+    iccost = "\nCONSTRUCTION COST: " + building[5]
+    artifrate = " ARTIFACT RATE: " + building[7]
+    fifp = "\n FIFP: [" + ' '.join([building[6], building[8], building[9], building[10]]) + "]"
+    defense = "\n DEFENSE: " + building[12]
+    attack = " ATTACK: " + building[13]
+    slots = "\n SLOTS USED: " + building[11]
+    weird = " WEIRDNESS: " + building[14]
+    
+    return name + fundcost + artifcost + iccost + artifrate + fifp + defense + attack + slots + weird
+
+def format_buildinglist(buildings, tier):
+    embed = discord.Embed(title = "TIER " + tier + " BUILDINGS")
+    for building in buildings:
+        embed.add_field(name = building_names[building[1]], value = building_stats(building), inline = True)
+    return embed
+
+def format_build(building_name, building):
+    embed = discord.Embed(title = building_names[building_name])
+    embed.add_field(name = "ABOUT", value = building_text[building_name], inline = False)
+    embed.add_field(name = "STATS", value = building_stats(building), inline = False)
+    embed.add_field(name = "DO YOU WISH TO CONSTRUCT THIS BUILDING?", value = "(yes/no)", inline = False)
     return embed

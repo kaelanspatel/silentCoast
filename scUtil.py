@@ -1,4 +1,4 @@
-import datetime, pandas
+import datetime, pandas, csv
 
 # Get difference between row with key discord's last collection time and now
 def get_cycle_difference(discord, cursor):
@@ -46,6 +46,14 @@ def csv_to_db(filename, tablename, db):
     df.to_sql(tablename, db, if_exists='append', index=False)
     db.commit()
 
+# Loads csv of filename into a dict and returns it
+def csv_to_dict(filename):
+    reader = csv.reader(open(filename, 'r'))
+    dict = {}
+    for k, v in reader:
+        dict[k] = v
+    return dict
+
 # Updates all settlement rows for key discord based on table user_buildings and user_terrain
 def update_settlement(discord, cursor, db, time_passed):
 
@@ -83,6 +91,27 @@ def update_settlement(discord, cursor, db, time_passed):
 
     db.commit()
 
+# Takes a discord id and returns either a string detailing why that user cannot build, or None
+def can_build(discord, cursor, building_cost_funds, building_cost_artifacts, building_slots):
+
+    # first, check if already building
+    cursor.execute('SELECT * FROM build_q WHERE discord = ?', (discord,))
+    if cursor.fetchone():
+        return "USER ALREADY APPLYING INDUSTRY"
+    
+    # next, check if they have the funds to build the building
+    cursor.execute('SELECT * FROM settlement WHERE discord = ?', (discord,))
+    user_s = cursor.fetchone()
+
+    if user_s[4] < building_cost_funds or user_s[6] < building_cost_artifacts:
+        return "USER HAS INSUFFICIENT RESOURCES TO CONSTRUCT"
+
+    # next, check if they have the free slots nessesary
+    if user_s[13] < building_slots:
+        return "USER HAS INSUFFICIENT BUILDING SLOTS"
+
+    # if all these are ok, then they can build!
+    return None
 
 # Deletes and recreates empty tables
 def rebuild_tables(cursor, db):

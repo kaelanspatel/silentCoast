@@ -6,6 +6,7 @@ from scFormat import *
 import os
 import sqlite3
 import datetime
+import string
 
 # Discord bot stuff init
 intents = discord.Intents.default()
@@ -113,7 +114,7 @@ async def on_ready():
         csv_to_db("./scTerrain.csv", "terrain", db)
         csv_to_db("./scBuildings.csv", "buildings", db)
 
-
+        
 
     except sqlite3.Error as err:
         print("Databse Error:", err)
@@ -135,6 +136,11 @@ async def wipe(ctx):
 
 @bot.command(name = 'join', aliases = ['j'], help = 'Name your settlement.')
 async def join(ctx, settlementname):
+
+    # 32 char limit, as arbitrarily set by me :V
+    # strip punctuation; thanks Alex :)
+    settlementname = settlementname[:32]
+    settlementname.translate(str.maketrans('', '', string.punctuation))
 
     # if user not in users table, create entry in users and prompt for settlement creation
     cursor.execute('SELECT * FROM users WHERE discord = ?', (ctx.message.author.id,))
@@ -168,7 +174,7 @@ async def join(ctx, settlementname):
         reaction, user = await bot.wait_for("reaction_add", check=check)
 
         if str(reaction.emoji) == opt1:
-            await ctx.send('```You have created the settlement of ' + settlementname + " on a rocky seaside outcropping in the SILENT COAST! Use the [collect] command to see your resources.```")
+            await ctx.send('```You have created the settlement of ' + settlementname + " atop a rocky seaside outcropping on the SILENT COAST! Use the [collect] command to see your resources.```")
             startTerrain = 'coast'
 
         if str(reaction.emoji) == opt2:
@@ -202,7 +208,7 @@ async def join(ctx, settlementname):
 
         db.commit()
 
-        update_settlement(ctx.message.author.id, cursor, db)
+        update_settlement(ctx.message.author.id, cursor, db, 0)
 
     else:
 
@@ -252,20 +258,77 @@ async def test(ctx):
 @bot.command(name = 'listbuildings', aliases = ['lb', 'bl'], help = 'List buildings. Leave blank for all buildings, or type a number 0-4 for buildings of that tier.')
 async def test(ctx, tier = None):
     if tier == None:
-        cursor.execute('SELECT * FROM buildings WHERE NOT tier = -1')
-        curr = cursor.fetchall()
-        print(curr)
+       await ctx.send("```VIOLATION: CORRECT USAGE IS [%listbuildings] AND THEN A TIER 0-4```")
     elif tier in ['0', '1', '2', '3', '4']:
         cursor.execute('SELECT * FROM buildings WHERE tier = ?', (tier,))
-        curr = cursor.fetchall()
-        print(curr)
+        buildings = cursor.fetchall()
+        await ctx.send(embed = format_buildinglist(buildings, tier))
     else:
-        await ctx.send("```VIOLATION: INVALID ARGUMENT TO [listbuildings] COMMAND```")
+        await ctx.send("```VIOLATION: INVALID ARGUMENT TO [%listbuildings] COMMAND```")
         
 
 @bot.command(name = 'build', aliases = ['b', 'con', 'const', 'construct', 'constr'], help = 'Construct a building.')
-async def test(ctx, building):
-    await ctx.send("NOT IMPLEMENTED: SORRY :)")
+async def test(ctx, building = None):
+    if building == None:
+        await ctx.send("```VIOLATION: NO BUILDING SPECIFIED, DESIGNATE A BUILDING BUILD STRING```")
+        return
+    
+    if len(building) > 20:
+        await ctx.send("```VIOLATION: INVALID BUILD STRING```")
+        return
+
+    cursor.execute('SELECT * FROM buildings WHERE buildingName = ?', (building,))
+    tobuild = cursor.fetchone()
+
+    if not tobuild:
+
+        await ctx.send("```VIOLATION: INVALID BUILD STRING```")
+        return
+
+    else:
+
+        cost = tobuild[2]
+        acost = tobuild[3]
+        slots = tobuild[11]
+        iccost = tobuild[5]
+        
+        cursor.execute('SELECT name, industryRate FROM settlement WHERE discord = ?', (ctx.message.author.id,))
+        userdata = cursor.fetchone()
+        settlement_name = userdata[0]
+        user_ic = userdata[1]
+
+        yes = '✅'
+        no = '❌'
+
+        embed = format_build(building, tobuild)
+        message = await ctx.send(embed=embed)
+
+        await message.add_reaction(yes)
+        await message.add_reaction(no)
+
+        def check(reaction, user):
+            return user == ctx.author and str(reaction.emoji) in [yes, no]
+
+        reaction, user = await bot.wait_for("reaction_add", check=check)
+
+        if str(reaction.emoji) == yes:
+
+            building_blocked = can_build(ctx.message.author.id, cursor, cost, acost, slots)
+
+            if building_blocked:
+                await ctx.send("```VIOLATION: " + building_blocked + "```")
+                return
+            else:
+
+                # add building to build queue
+                cursor.execute('INSERT INTO build_q (discord, builditemName, cost, ic, startTime) VALUES (?, ?, ?, ?, ?)', (ctx.message.author.id, building, iccost, user_ic, datetime.datetime.now(),))
+                await ctx.send("```BEGINNING CONSTRUCTION IN THE SETTLEMENT OF " + settlement_name + "```")
+
+        if str(reaction.emoji) == no:
+            
+            await ctx.send("```CONSTRUCTION CANCELED```")
+            
+
 
 # Run bot
 bot.run(token)
