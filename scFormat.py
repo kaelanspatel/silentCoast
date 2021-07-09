@@ -64,3 +64,37 @@ def format_build(building_name, building):
     embed.add_field(name = "STATS", value = building_stats(building), inline = False)
     embed.add_field(name = "DO YOU WISH TO CONSTRUCT THIS BUILDING?", value = "(yes/no)", inline = False)
     return embed
+
+def format_status(user_s_row, icbar, popbar, isbuilding, building):
+    embed = discord.Embed(title = "The settlement of " + user_s_row[1])
+    # format is fundtotal 0, fundrate 1, artifacttotal 2, artifactrate 3, industry 4, food 5, power 6, def 7, attack 8, free slots 9, strange 10
+    data = [user_s_row[4], user_s_row[5], user_s_row[6], user_s_row[7], user_s_row[8], user_s_row[9], user_s_row[10], user_s_row[11], user_s_row[12], user_s_row[13] - user_s_row[14], user_s_row[15]]
+
+    if isbuilding:
+
+        embed.add_field(name = "CONSTRUCTION:", value = building_names[building] + "\n" + icbar[0] + "  " + str(icbar[1]) + "%", inline = False)
+
+    else:
+
+        embed.add_field(name = "CONSTRUCTION:", value = "NO CONSTRUCTION", inline = False)
+
+    # RENDER POP BAR HERE
+    # THIS SHOULD ALWAYS BE HERE
+
+    embed.add_field(name = "FUNDS STORED:", value = data[0], inline = True)
+    embed.add_field(name = "ARTIFACTS STORED:", value = data[2], inline = True)
+    embed.add_field(name = "FUNDS PER CYCLE:", value = data[1], inline = True)
+    embed.add_field(name = "ARTIF. PER CYCLE:", value = data[3], inline = True)
+
+    embed.add_field(name = "INDUSTRY", value = data[4], inline = True)
+    embed.add_field(name = "FOOD", value = data[5], inline = True)
+
+    embed.add_field(name = "SETTLMT. POWER", value = data[6], inline = True)
+    embed.add_field(name = "SETTLMT. STRANGNESS", value = data[10], inline = True)
+
+    embed.add_field(name = "DEFENSE", value = data[7], inline = True)
+    embed.add_field(name = "ATTACK", value = data[8], inline = True)
+    
+    embed.add_field(name = "FREE BUILD SLOTS", value = data[9], inline = True)
+
+    return embed

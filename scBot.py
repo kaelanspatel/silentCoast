@@ -252,6 +252,9 @@ async def test(ctx):
     # update settlement totals
     update_settlement(ctx.message.author.id, cursor, db, diff)
 
+    cursor.execute('SELECT * FROM settlement WHERE discord = ?', (ctx.message.author.id,))
+    user_row = cursor.fetchone()
+
     # check build progress and save bar
     cursor.execute('SELECT builditemName FROM build_q WHERE discord = ?', (ctx.message.author.id,))
     builditem = cursor.fetchone()
@@ -261,14 +264,19 @@ async def test(ctx):
         builditem = builditem[0]
 
         if builditem in building_names:
-            bar = update_buildq(ctx.message.author.id, cursor, db, builditem)
-            print(bar)
+            icbar = update_buildq(ctx.message.author.id, cursor, db, builditem)
+            embed = format_status(user_row, icbar, '', True, builditem)
 
-    # format collect embed
+            await ctx.send(embed = embed)
+            
+
+    else:
+
+         embed = format_status(user_row, '', '', False, None)
+         await ctx.send(embed = embed)
     
     
-    
-    await ctx.send("ACTION REPORT:\nTIME PASSED SINCE LAST REPORT: "  + str(diff))
+    # await ctx.send("ACTION REPORT:\nTIME PASSED SINCE LAST REPORT: "  + str(diff))
 
 @bot.command(name = 'listbuildings', aliases = ['lb', 'bl'], help = 'List buildings. Leave blank for all buildings, or type a number 0-4 for buildings of that tier.')
 async def test(ctx, tier = None):
@@ -336,6 +344,8 @@ async def test(ctx, building = None):
             else:
                 
                 # subtract funds/artifacts required
+                print(type(cost), type(acost))
+                cursor.execute('UPDATE settlement SET fundTotal = fundTotal - ?, artifactTotal = artifactTotal - ? WHERE  discord = ?', (cost,acost,ctx.message.author.id,))
 
                 # add building to build queue
                 cursor.execute('INSERT INTO build_q (discord, builditemName, cost, ic, startTime) VALUES (?, ?, ?, ?, ?)', (ctx.message.author.id, building, iccost, user_ic, datetime.datetime.now(),))
