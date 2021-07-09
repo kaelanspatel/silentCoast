@@ -3,6 +3,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from scUtil import *
 from scFormat import *
+import asyncio
 import os
 import sqlite3
 import datetime
@@ -126,6 +127,8 @@ async def on_ready():
         print('Silent Coast Bot Online')
         print(bot.user.id)
         print('----------')
+
+        await cycler()
 
 
 @bot.command(name = 'rebuild', aliases = ['wdb', 'fw', 'w', 'r'], hidden = True)
@@ -361,7 +364,37 @@ async def test(ctx, building = None):
             
             await ctx.send("```CONSTRUCTION CANCELED```")
             
+async def cycler():
+    while True:
 
+        cursor.execute('SELECT discord FROM users')
+        users = cursor.fetchall()
+        print(users)
+        for user in users:
+
+            user = user[0]
+            
+            # determine time difference since last collection in full minuites and update
+            diff = collection_timestamp_update(user, cursor, db)
+            
+            # update settlement totals
+            update_settlement(user, cursor, db, diff)
+
+            cursor.execute('SELECT * FROM settlement WHERE discord = ?', (user,))
+            user_row = cursor.fetchone()
+
+            # check build progress and save bar
+            cursor.execute('SELECT builditemName FROM build_q WHERE discord = ?', (user,))
+            builditem = cursor.fetchone()
+
+            if builditem:
+
+                builditem = builditem[0]
+
+                if builditem in building_names:
+                    update_buildq(user, cursor, db, builditem)
+
+        await asyncio.sleep(300)
 
 # Run bot
 bot.run(token)
